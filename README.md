@@ -1,21 +1,21 @@
-# synthdesk-agency
+---
+## synthdesk-agency
 
-Advisory-only interpretation layer for SynthDesk.
+synthdesk-agency transforms listener records into human-
+and machine-readable epistemic snapshots.
+it does not recommend, route, optimize, or act.
 
-This repository provides a **purely descriptive, inert agency layer** that interprets
-artifacts emitted by `synthdesk-listener` into human-readable advisory views.
+### what it does
+- aggregates and annotates listener artifacts
+- produces descriptive summaries and snapshots
+- exposes structured, non-actionable outputs
 
-## Scope
-- advisory-only
-- no execution
-- no trading
-- no automation
-- no network calls
-- no side effects
+### what it does not do
+- generate advice or instructions
+- rank opportunities or assets
+- imply timing, magnitude, or preference
+- interact with exchanges or capital
 
-## Relationship to synthdesk-listener
-`synthdesk-listener` produces signals, logs, and state.
-`synthdesk-agency` **interprets** those artifacts into decisions, scores, disagreements,
-and snapshots for human inspection.
-
-This repo is intentionally non-operational.
+agency outputs are descriptive only.
+machine-readable does not imply executable.
+---
