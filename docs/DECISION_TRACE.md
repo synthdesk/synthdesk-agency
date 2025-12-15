@@ -1,3 +1,5 @@
+STATUS: REFERENCE (descriptive, non-authoritative)
+
 # decision trace
 
 A decision trace is a structural explanation of advisory reasoning.
@@ -7,4 +9,3 @@ A decision trace is a structural explanation of advisory reasoning.
 - it may include human-readable notes
 - it has no side effects
 - it does not imply execution or action
-

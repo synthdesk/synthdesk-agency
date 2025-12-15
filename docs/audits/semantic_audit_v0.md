@@ -1,3 +1,5 @@
+STATUS: REFERENCE (descriptive, non-authoritative)
+
 # semantic audit — v0 (router permanent veto)
 
 scope:
@@ -23,4 +25,3 @@ findings:
 status:
 - no code changes applied
 - findings recorded for later remediation
-
