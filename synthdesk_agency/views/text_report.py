@@ -1,4 +1,4 @@
-"""Human-readable text report renderer for AgencySnapshot (advisory-only)."""
+"""Human-readable text report renderer for AgencySnapshot (epistemic-only; descriptive)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ def render_text_report(
 ) -> Sequence[str]:
     lines: List[str] = []
 
-    lines.append("agency snapshot (advisory-only; descriptive)")
+    lines.append("agency snapshot (epistemic-only; descriptive)")
 
     lines.append("context:")
     if snapshot.context is None:
@@ -44,14 +44,14 @@ def render_text_report(
         lines.append("- present (information; no resolution implied)")
         lines.append(f"- reported: {snapshot.disagreement!r}")
 
-    lines.append("aggregate view:")
+    lines.append("aggregate snapshot:")
     if snapshot.aggregate_view is None:
         lines.append("- absent")
     else:
         lines.append("- present (parallel; no resolution implied)")
         lines.append(f"- reported: {snapshot.aggregate_view!r}")
 
-    lines.append("temporal view:")
+    lines.append("temporal snapshot:")
     if snapshot.temporal_view is None:
         lines.append("- absent")
     else:
