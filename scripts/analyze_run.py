@@ -206,6 +206,8 @@ def main(argv: list[str] | None = None) -> int:
     abs_return_pct_p75 = _quantile(abs_return_pct_values, 0.75)
     body_ratio_median = _quantile(body_ratio_values, 0.5)
 
+    # Asset-agnostic: this snapshot is expected to work identically for any symbol.
+    # Comparing snapshots across assets (e.g. BTC vs ETH) is supported and intended.
     temporal_regime_snapshot: dict[str, dict[str, int]] = {}
     saw_regime_label = False
 
