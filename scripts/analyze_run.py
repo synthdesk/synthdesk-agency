@@ -210,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     # Comparing snapshots across assets (e.g. BTC vs ETH) is supported and intended.
     temporal_regime_snapshot: dict[str, dict[str, int]] = {}
     saw_regime_label = False
+    previous_base_regime: Optional[str] = None
 
     for event in signal_events:
         metrics = event.metrics or {}
@@ -245,15 +246,41 @@ def main(argv: list[str] | None = None) -> int:
         if body_ratio_median is not None and body_ratio is not None and body_ratio <= body_ratio_median:
             conditions_met += 1
 
-        metrics["regime"] = "expansion" if conditions_met >= 2 else "quiet"
+        base_regime = "expansion" if conditions_met >= 2 else "quiet"
+
+        transition = False
+        if previous_base_regime is not None and base_regime != previous_base_regime:
+            transition = True
+
+        if (
+            not transition
+            and range_abs_median is not None
+            and body_ratio_median is not None
+            and isinstance(range_abs, (int, float))
+            and not isinstance(range_abs, bool)
+            and body_ratio is not None
+        ):
+            range_value = float(range_abs)
+            range_lower = range_abs_median * 0.9
+            range_upper = range_abs_median * 1.1
+            body_lower = body_ratio_median * 0.9
+            body_upper = body_ratio_median * 1.1
+            if range_lower <= range_value <= range_upper and body_lower <= body_ratio <= body_upper:
+                transition = True
+
+        metrics["regime"] = "transition" if transition else base_regime
+        previous_base_regime = base_regime
 
         timestamp = event.timestamp
         regime = metrics.get("regime")
         if isinstance(timestamp, str) and len(timestamp) >= 13 and isinstance(regime, str):
             hour_bucket = timestamp[:13]
-            if regime in ("quiet", "expansion"):
+            if regime in ("quiet", "expansion", "transition"):
                 saw_regime_label = True
-                bucket = temporal_regime_snapshot.setdefault(hour_bucket, {"quiet": 0, "expansion": 0})
+                bucket = temporal_regime_snapshot.setdefault(
+                    hour_bucket,
+                    {"quiet": 0, "expansion": 0, "transition": 0},
+                )
                 bucket[regime] += 1
 
     def _summarize(values: list[float]) -> Optional[dict[str, float]]:
