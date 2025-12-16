@@ -1,3 +1,8 @@
+# FROZEN — candle_builder_v1.py
+# builder_version: v1.0.0
+# status: immutable
+# any changes require a new builder version (v2+)
+
 """
 Passive 60s candle builder v1.
 
