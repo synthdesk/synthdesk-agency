@@ -112,6 +112,9 @@ def main(argv: list[str] | None = None) -> int:
     first_timestamp: Optional[str] = None
     last_timestamp: Optional[str] = None
     last_error: Optional[str] = None
+    return_pct_values: list[float] = []
+    range_abs_values: list[float] = []
+    body_abs_values: list[float] = []
 
     with in_path.open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -149,9 +152,34 @@ def main(argv: list[str] | None = None) -> int:
 
             totals["events_parsed"] += 1
 
+            metrics = signal_event.metrics or {}
+            for key, bucket in (
+                ("return_pct", return_pct_values),
+                ("range_abs", range_abs_values),
+                ("body_abs", body_abs_values),
+            ):
+                value = metrics.get(key)
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    bucket.append(float(value))
+
             context = AgencyContext(events=[signal_event], metadata={"source_path": str(in_path)})
             _ = scorer.score(context)
             totals["events_scored"] += 1
+
+    def _summarize(values: list[float]) -> Optional[dict[str, float]]:
+        if not values:
+            return None
+        return {
+            "min": min(values),
+            "max": max(values),
+            "mean": sum(values) / len(values),
+        }
+
+    metric_summary = {
+        "return_pct": _summarize(return_pct_values),
+        "range_abs": _summarize(range_abs_values),
+        "body_abs": _summarize(body_abs_values),
+    }
 
     report = {
         "input_path": str(in_path),
@@ -160,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         "last_timestamp": last_timestamp,
         "event_types": dict(event_type_counts),
         "pairs": dict(pair_counts),
+        "metric_summary": metric_summary,
         "last_error": last_error,
         "advisory_only": True,
         "notes": [
