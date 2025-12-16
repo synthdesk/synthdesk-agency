@@ -206,6 +206,9 @@ def main(argv: list[str] | None = None) -> int:
     abs_return_pct_p75 = _quantile(abs_return_pct_values, 0.75)
     body_ratio_median = _quantile(body_ratio_values, 0.5)
 
+    temporal_regime_snapshot: dict[str, dict[str, int]] = {}
+    saw_regime_label = False
+
     for event in signal_events:
         metrics = event.metrics or {}
         range_abs = metrics.get("range_abs")
@@ -242,6 +245,15 @@ def main(argv: list[str] | None = None) -> int:
 
         metrics["regime"] = "expansion" if conditions_met >= 2 else "quiet"
 
+        timestamp = event.timestamp
+        regime = metrics.get("regime")
+        if isinstance(timestamp, str) and len(timestamp) >= 13 and isinstance(regime, str):
+            hour_bucket = timestamp[:13]
+            if regime in ("quiet", "expansion"):
+                saw_regime_label = True
+                bucket = temporal_regime_snapshot.setdefault(hour_bucket, {"quiet": 0, "expansion": 0})
+                bucket[regime] += 1
+
     def _summarize(values: list[float]) -> Optional[dict[str, float]]:
         if not values:
             return None
@@ -272,6 +284,8 @@ def main(argv: list[str] | None = None) -> int:
             "No routing, execution, or operational authority is implied.",
         ],
     }
+    if saw_regime_label:
+        report["temporal_regime_snapshot"] = temporal_regime_snapshot
 
     rendered = json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
