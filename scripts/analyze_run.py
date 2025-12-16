@@ -48,19 +48,31 @@ def _candle_to_signal_event(obj: dict[str, Any]) -> SignalEvent:
 
     This is a semantic boundary, not an inference.
     """
+    open_ = obj.get("open")
+    high = obj.get("high")
+    low = obj.get("low")
+    close = obj.get("close")
+
+    return_pct = (close - open_) / open_ if open_ else None
+    range_abs = (high - low) if (high is not None and low is not None) else None
+    body_abs = abs(close - open_) if (close is not None and open_ is not None) else None
+
     return SignalEvent(
         event="candle_observation",
         pair=str(obj.get("symbol", "unknown")),
         timestamp=str(obj.get("interval_start", "")),
-        price=obj.get("close"),
+        price=close,
         metrics={
-            "open": obj.get("open"),
-            "high": obj.get("high"),
-            "low": obj.get("low"),
-            "close": obj.get("close"),
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
             "volume": obj.get("volume"),
             "resolution": obj.get("resolution"),
             "exchange": obj.get("exchange"),
+            "return_pct": return_pct,
+            "range_abs": range_abs,
+            "body_abs": body_abs,
         },
         version=obj.get("listener_version"),
     )
