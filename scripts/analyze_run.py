@@ -15,6 +15,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
+from synthdesk_agency.signals.models import SignalEvent
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="scripts/analyze_run.py")
@@ -41,6 +42,30 @@ def _coerce_event_obj(raw: Any) -> Optional[dict[str, Any]]:
     return raw if isinstance(raw, dict) else None
 
 
+def _candle_to_signal_event(obj: dict[str, Any]) -> SignalEvent:
+    """
+    Explicit adapter: listener candle → agency SignalEvent.
+
+    This is a semantic boundary, not an inference.
+    """
+    return SignalEvent(
+        event="candle_observation",
+        pair=str(obj.get("symbol", "unknown")),
+        timestamp=str(obj.get("interval_start", "")),
+        price=obj.get("close"),
+        metrics={
+            "open": obj.get("open"),
+            "high": obj.get("high"),
+            "low": obj.get("low"),
+            "close": obj.get("close"),
+            "volume": obj.get("volume"),
+            "resolution": obj.get("resolution"),
+            "exchange": obj.get("exchange"),
+        },
+        version=obj.get("listener_version"),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     in_path = Path(args.jsonl_path)
@@ -59,7 +84,6 @@ def main(argv: list[str] | None = None) -> int:
 
     from synthdesk_agency.core.context import AgencyContext
     from synthdesk_agency.evaluation.scorer import SignalScorer
-    from synthdesk_agency.signals.models import SignalEvent
 
     scorer = SignalScorer()
 
@@ -97,31 +121,21 @@ def main(argv: list[str] | None = None) -> int:
                 last_error = "invalid_schema: expected object"
                 continue
 
-            event_type = obj.get("event")
-            pair = obj.get("pair")
-            timestamp = obj.get("timestamp")
+            signal_event = _candle_to_signal_event(obj)
 
-            if isinstance(timestamp, str):
+            timestamp = signal_event.timestamp
+            pair = signal_event.pair
+            event_type = signal_event.event
+
+            if timestamp:
                 if first_timestamp is None:
                     first_timestamp = timestamp
                 last_timestamp = timestamp
 
-            if isinstance(event_type, str):
-                event_type_counts[event_type] += 1
-            if isinstance(pair, str):
-                pair_counts[pair] += 1
+            event_type_counts[event_type] += 1
+            pair_counts[pair] += 1
 
             totals["events_parsed"] += 1
-
-            signal_event = SignalEvent(
-                event=str(event_type) if event_type is not None else "unknown",
-                pair=str(pair) if pair is not None else "unknown",
-                price=obj.get("price"),  # schema is advisory-only; allow non-float inputs
-                timestamp=str(timestamp) if timestamp is not None else "",
-                metrics=obj.get("metrics") if isinstance(obj.get("metrics"), dict) else None,
-                version=obj.get("version") if isinstance(obj.get("version"), str) else None,
-                tick_id=obj.get("tick_id") if isinstance(obj.get("tick_id"), int) else None,
-            )
 
             context = AgencyContext(events=[signal_event], metadata={"source_path": str(in_path)})
             _ = scorer.score(context)
