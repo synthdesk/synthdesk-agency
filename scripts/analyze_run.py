@@ -115,6 +115,9 @@ def main(argv: list[str] | None = None) -> int:
     return_pct_values: list[float] = []
     range_abs_values: list[float] = []
     body_abs_values: list[float] = []
+    abs_return_pct_values: list[float] = []
+    body_ratio_values: list[float] = []
+    signal_events: list[SignalEvent] = []
 
     with in_path.open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -162,9 +165,82 @@ def main(argv: list[str] | None = None) -> int:
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     bucket.append(float(value))
 
+            return_pct = metrics.get("return_pct")
+            if isinstance(return_pct, (int, float)) and not isinstance(return_pct, bool):
+                abs_return_pct_values.append(abs(float(return_pct)))
+
+            body_abs = metrics.get("body_abs")
+            range_abs = metrics.get("range_abs")
+            if (
+                isinstance(body_abs, (int, float))
+                and not isinstance(body_abs, bool)
+                and isinstance(range_abs, (int, float))
+                and not isinstance(range_abs, bool)
+                and float(range_abs) > 0.0
+            ):
+                body_ratio_values.append(float(body_abs) / float(range_abs))
+
+            signal_events.append(signal_event)
+
             context = AgencyContext(events=[signal_event], metadata={"source_path": str(in_path)})
             _ = scorer.score(context)
             totals["events_scored"] += 1
+
+    def _quantile(values: list[float], q: float) -> Optional[float]:
+        if not values:
+            return None
+        ordered = sorted(values)
+        if q <= 0.0:
+            return ordered[0]
+        if q >= 1.0:
+            return ordered[-1]
+        if len(ordered) == 1:
+            return ordered[0]
+        pos = q * (len(ordered) - 1)
+        lo = int(pos)
+        hi = min(lo + 1, len(ordered) - 1)
+        frac = pos - lo
+        return ordered[lo] * (1.0 - frac) + ordered[hi] * frac
+
+    range_abs_median = _quantile(range_abs_values, 0.5)
+    abs_return_pct_p75 = _quantile(abs_return_pct_values, 0.75)
+    body_ratio_median = _quantile(body_ratio_values, 0.5)
+
+    for event in signal_events:
+        metrics = event.metrics or {}
+        range_abs = metrics.get("range_abs")
+        return_pct = metrics.get("return_pct")
+        body_abs = metrics.get("body_abs")
+
+        body_ratio = None
+        if (
+            isinstance(body_abs, (int, float))
+            and not isinstance(body_abs, bool)
+            and isinstance(range_abs, (int, float))
+            and not isinstance(range_abs, bool)
+            and float(range_abs) > 0.0
+        ):
+            body_ratio = float(body_abs) / float(range_abs)
+
+        conditions_met = 0
+        if (
+            range_abs_median is not None
+            and isinstance(range_abs, (int, float))
+            and not isinstance(range_abs, bool)
+            and float(range_abs) >= range_abs_median
+        ):
+            conditions_met += 1
+        if (
+            abs_return_pct_p75 is not None
+            and isinstance(return_pct, (int, float))
+            and not isinstance(return_pct, bool)
+            and abs(float(return_pct)) >= abs_return_pct_p75
+        ):
+            conditions_met += 1
+        if body_ratio_median is not None and body_ratio is not None and body_ratio <= body_ratio_median:
+            conditions_met += 1
+
+        metrics["regime"] = "expansion" if conditions_met >= 2 else "quiet"
 
     def _summarize(values: list[float]) -> Optional[dict[str, float]]:
         if not values:
